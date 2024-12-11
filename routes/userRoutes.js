@@ -5,8 +5,13 @@ const { createUser, loginUser } = require('../controllers/userController');
 
 console.log('Percorso corrente:', process.cwd());
 console.log('Percorso del file:', __dirname);
-console.log('Contenuto della directory:', require('fs').readdirSync(__dirname));
-console.log('Contenuto middleware:', require('fs').readdirSync(path.join(__dirname, '..', 'middleware')));
+console.log('Contenuto della directory routes:', require('fs').readdirSync(__dirname));
+
+try {
+  console.log('Contenuto middleware:', require('fs').readdirSync(path.join(__dirname, '..', 'middleware')));
+} catch (error) {
+  console.error('Errore leggendo middleware:', error);
+}
 
 const authMiddleware = require('../middleware/authMiddleware');
 
