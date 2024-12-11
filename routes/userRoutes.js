@@ -7,14 +7,11 @@ console.log('Percorso corrente:', process.cwd());
 console.log('Percorso del file:', __dirname);
 console.log('Contenuto della directory routes:', require('fs').readdirSync(__dirname));
 
-try {
-  console.log('Contenuto middleware:', require('fs').readdirSync(path.join(__dirname, '..', 'middleware')));
-} catch (error) {
-  console.error('Errore leggendo middleware:', error);
-}
+// Rimuovi il try-catch che causa l'errore
+console.log('Percorso middleware completo:', path.join(__dirname, '..', 'middleware'));
 
-// Usa un percorso assoluto per l'importazione
-const authMiddleware = require(path.join(__dirname, '..', 'middleware', 'authMiddleware'));
+// Usa require con percorso assoluto
+const authMiddleware = require(path.resolve(__dirname, '..', 'middleware', 'authMiddleware'));
 
 console.log('createUser:', typeof createUser);
 console.log('loginUser:', typeof loginUser);
