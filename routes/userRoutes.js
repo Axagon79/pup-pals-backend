@@ -1,36 +1,21 @@
-const createUser = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    
-    // Logica di registrazione
-    res.status(201).json({ 
-      message: 'Utente registrato con successo',
-      user: { username }
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Errore durante la registrazione' 
-    });
-  }
-};
+const express = require('express');
+const router = express.Router();
+const { createUser, loginUser } = require('../controllers/userController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-const loginUser = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    
-    // Logica di login
-    res.status(200).json({ 
-      message: 'Login effettuato con successo',
-      user: { username }
-    });
-  } catch (error) {
-    res.status(401).json({ 
-      message: 'Credenziali non valide' 
-    });
-  }
-};
+console.log('createUser:', typeof createUser);
+console.log('loginUser:', typeof loginUser);
+console.log('authMiddleware:', typeof authMiddleware);
 
-module.exports = {
-  createUser,
-  loginUser
-};
+router.post('/register', createUser);
+router.post('/login', loginUser);
+
+// Esempio di rotta protetta
+router.get('/profile', authMiddleware, (req, res) => {
+  res.json({ 
+    message: 'Profilo utente',
+    user: req.user 
+  });
+});
+
+module.exports = router;
