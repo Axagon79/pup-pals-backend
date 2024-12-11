@@ -13,7 +13,8 @@ try {
   console.error('Errore leggendo middleware:', error);
 }
 
-const authMiddleware = require('../middleware/authMiddleware');
+// Usa un percorso assoluto per l'importazione
+const authMiddleware = require(path.join(__dirname, '..', 'middleware', 'authMiddleware'));
 
 console.log('createUser:', typeof createUser);
 console.log('loginUser:', typeof loginUser);
