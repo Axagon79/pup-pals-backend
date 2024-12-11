@@ -20,6 +20,9 @@ mongoose.connect(MONGODB_URI)
 
 // Importa le rotte
 const userRoutes = require('./routes/userRoutes');
+console.log('Tipo di userRoutes:', typeof userRoutes);
+console.log('Chiavi di userRoutes:', Object.keys(userRoutes));
+
 app.use('/users', userRoutes);
 
 // Avvio del server
