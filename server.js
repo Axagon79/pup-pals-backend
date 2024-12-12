@@ -20,10 +20,13 @@ mongoose.connect(MONGODB_URI)
 
 // Importa le rotte
 const userRoutes = require('./routes/userRoutes');
+const dogRoutes = require('./routes/dogRoutes'); // Nuova linea
+
 console.log('Tipo di userRoutes:', typeof userRoutes);
 console.log('Chiavi di userRoutes:', Object.keys(userRoutes));
 
 app.use('/users', userRoutes);
+app.use('/api/dogs', dogRoutes); // Nuova linea
 
 // Avvio del server
 app.listen(port, () => {
