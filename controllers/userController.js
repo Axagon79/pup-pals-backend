@@ -4,20 +4,20 @@ const jwt = require('jsonwebtoken');
 
 const createUser = async (req, res) => {
   try {
-    const { username, password } = req.body;
-    
+    const { username, email, password } = req.body;
+
     // Validazione input
-    if (!username || !password) {
+    if (!username || !email || !password) {
       return res.status(400).json({ 
-        message: 'Username e password sono richiesti' 
+        message: 'Username, email e password sono richiesti' 
       });
     }
 
     // Verifica se l'utente esiste già
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ 
-        message: 'Username già esistente' 
+        message: 'Username o email già esistente' 
       });
     }
 
@@ -28,6 +28,7 @@ const createUser = async (req, res) => {
     // Crea nuovo utente
     const newUser = new User({
       username,
+      email,
       password: hashedPassword
     });
 
@@ -37,24 +38,25 @@ const createUser = async (req, res) => {
       message: 'Utente registrato con successo',
       user: { 
         id: newUser._id, 
-        username: newUser.username 
+        username: newUser.username,
+        email: newUser.email
       }
     });
   } catch (error) {
     console.error('Errore durante la registrazione:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Errore durante la registrazione',
-      error: error.message 
+      error: error.message
     });
   }
 };
 
 const loginUser = async (req, res) => {
   try {
-    const { username, password } = req.body;
-    
+    const { email, password } = req.body;
+
     // Trova l'utente
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ 
         message: 'Credenziali non valide' 
@@ -71,7 +73,7 @@ const loginUser = async (req, res) => {
 
     // Genera token JWT
     const token = jwt.sign(
-      { id: user._id, username: user.username }, 
+      { id: user._id, username: user.username, email: user.email }, 
       process.env.JWT_SECRET, 
       { expiresIn: '1h' }
     );
@@ -81,14 +83,15 @@ const loginUser = async (req, res) => {
       token,
       user: { 
         id: user._id, 
-        username: user.username 
+        username: user.username,
+        email: user.email
       }
     });
   } catch (error) {
     console.error('Errore durante il login:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Errore durante il login',
-      error: error.message 
+      error: error.message
     });
   }
 };

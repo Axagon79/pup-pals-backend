@@ -7,26 +7,26 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = process.env.PORT || 5000;
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
 // Middleware
 app.use(cors());
+app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-console.log('MONGODB_URI:', MONGODB_URI);
-
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connesso a MongoDB'))
-  .catch(err => console.error('Errore di connessione a MongoDB:', err));
-
-// Importa le rotte
+// Importa le routes
 const userRoutes = require('./routes/userRoutes');
 const dogRoutes = require('./routes/dogRoutes');
 
-// Aggiungi il prefisso /api a userRoutes
+// Usa le routes
 app.use('/api/users', userRoutes);
 app.use('/api/dogs', dogRoutes);
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// Connessione MongoDB
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connesso a MongoDB'))
+  .catch(err => console.error('Errore di connessione a MongoDB:', err));
 
 // Avvio del server
 app.listen(port, () => {
