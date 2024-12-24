@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const configureMulter = require('./config/multer');
+const path = require('path');
 
 // Validazione variabili d'ambiente
 if (!process.env.MONGODB_URI) {
@@ -19,7 +20,6 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://pup-pals.vercel.app', 
-      'http://localhost:3000'
     ];
 
     if (!origin || allowedOrigins.includes(origin)) {
@@ -42,6 +42,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/api', mediaRoutes);
 
 // Middleware di logging dettagliato
 app.use((req, res, next) => {
@@ -288,18 +292,37 @@ uptime: process.uptime()
 
 // Middleware di gestione errori Multer
 app.use((err, req, res, next) => {
-console.error(`
-=== ERRORE MULTER ===
-Errore: ${err}
-`);
+  console.error(`
+  === ERRORE MIDDLEWARE ===
+  Tipo di errore: ${err.constructor.name}
+  Messaggio: ${err.message}
+  Stack: ${err.stack}
+  `);
 
-if (err instanceof multer.MulterError) {
-return res.status(400).json({ 
-  error: 'Errore durante l\'upload',
-  details: err.message 
-});
-}
-next(err);
+  // Gestione specifica degli errori Multer
+  if (err instanceof multer.MulterError) {
+      return res.status(400).json({ 
+          success: false,
+          error: 'Errore durante l\'upload del file',
+          details: err.message 
+      });
+  }
+
+  // Gestione degli errori di dimensione file
+  if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+          success: false,
+          error: 'File troppo grande',
+          details: 'Il file supera la dimensione massima consentita'
+      });
+  }
+
+  // Gestione degli errori generici
+  res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: err.message
+  });
 });
 
 // Middleware di errore globale

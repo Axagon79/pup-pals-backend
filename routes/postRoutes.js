@@ -1,38 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const Post = require('../models/Post'); // Importa il modello Post
+const mongoose = require('mongoose'); // Importa mongoose se usi storage.delete
+const Post = require('../models/Post');
+const authenticate = require('../middlewares/auth');
+const { upload, storage } = require('../config/multerConfig'); // Importa upload e storage
 
-// Middleware per verificare l'autenticazione (da implementare)
-const authenticate = require('../middlewares/auth'); // Assicurati di avere un middleware di autenticazione
-const multerConfig = configureMulter(mongoose.connection);
-const upload = multerConfig.upload.single('file');
-
-router.post('/upload', (req, res) => {
-  upload(req, res, function(err) {
-    if (err) {
-      console.error('Errore upload:', err);
-      return res.status(400).json({ error: err.message });
-    }
-    // Gestisci il successo
-    res.json({ file: req.file });
-  });
-});
-    
-
-
-// Rotta per creare un nuovo post
-router.post('/', authenticate, async (req, res) => {
+// Rotta per creare un post e gestire l'upload del file
+router.post('/', authenticate, upload, async (req, res) => {
   try {
-    const { content, userId } = req.body; 
+    const { content } = req.body; // Prendi solo 'content' dal body
 
-    if (req.userId !== userId) {
+    // Usa req.userId (proveniente dal middleware di autenticazione) per l'autorizzazione
+    if (!req.userId) {
       return res.status(403).json({ error: 'Non autorizzato' });
     }
 
+    // Crea un nuovo post
     const newPost = new Post({
       content,
-      author: userId, // Usa direttamente userId (Firebase ID)
-      files: [] // Inizialmente vuoto
+      author: req.userId, // Usa req.userId come autore
+      files: req.file ? [req.file.id] : [] // Aggiungi l'ID del file se presente
     });
 
     await newPost.save();
@@ -43,7 +30,22 @@ router.post('/', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Errore creazione post:', error);
-    res.status(500).json({ error: error.message });
+    if (req.file) {
+      // Se c'è stato un errore, elimina il file caricato
+      try {
+        await storage.delete(req.file.id);
+        console.log(`File ${req.file.id} eliminato a causa di un errore.`);
+      } catch (deleteError) {
+        console.error(`Errore durante l'eliminazione del file ${req.file.id}:`, deleteError);
+      }
+    }
+
+    // Gestione errori più specifica
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    } else {
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
   }
 });
 
@@ -51,6 +53,7 @@ router.post('/', authenticate, async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const posts = await Post.find()
+      .populate('author', 'username') // Popola l'autore con i campi desiderati (es. username)
       .populate('files') // Popola i file
       .sort({ createdAt: -1 }); // Ordina per data di creazione decrescente
 
@@ -64,7 +67,9 @@ router.get('/', async (req, res) => {
 // Rotta per ottenere un singolo post con i suoi file
 router.get('/:postId', async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId).populate('files');
+    const post = await Post.findById(req.params.postId)
+      .populate('author', 'username') // Popola l'autore con i campi desiderati (es. username)
+      .populate('files');
 
     if (!post) {
       return res.status(404).json({ message: 'Post non trovato' });
@@ -76,7 +81,5 @@ router.get('/:postId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-
 
 module.exports = router;
