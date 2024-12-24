@@ -1,7 +1,7 @@
 // routes/mediaRoutes.js
 const express = require('express');
 const router = express.Router();
-const upload = require('../middleware/gridfsUpload'); // Il file che hai mostrato
+const configureMulter = require('../middleware/configureMulter'); // Importa configureMulter
 const mongoose = require('mongoose');
 
 // Schema per i metadati dei file
@@ -24,10 +24,18 @@ mongoose.connection.once('open', () => {
     });
 });
 
+// Configura Multer
+const { upload } = configureMulter(mongoose.connection); // Configura Multer
+
 // Rotta per l'upload
 router.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
+        console.log('Richiesta a /api/upload ricevuta');
+        console.log('req.file:', req.file);
+        console.log('req.body:', req.body);
+
         if (!req.file) {
+            console.log('Nessun file caricato');
             return res.status(400).json({ error: 'Nessun file caricato' });
         }
 
