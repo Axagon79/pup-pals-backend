@@ -1,0 +1,18 @@
+### Test Upload File
+POST http://localhost:5000/api/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="Screenshot - 09_12_2024 , 00_34_58.jpg"
+Content-Type: image/jpeg
+
+< C:\Users\lollo\Desktop\Screenshot - 09_12_2024 , 00_34_58.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="postId"
+
+123456
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="userId"
+
+789012
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
