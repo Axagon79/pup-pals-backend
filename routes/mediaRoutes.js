@@ -1,11 +1,31 @@
-router.post('/api/upload', upload.single('file'), async (req, res) => {
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const configureMulter = require('../config/multer');
+const File = require('../models/File');
+const authenticate = require('../middleware/auth');
+
+// Configura GridFS
+let gfs;
+mongoose.connection.once('open', () => {
+    gfs = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+        bucketName: 'uploads'
+    });
+});
+
+// Configura Multer
+const multerConfig = configureMulter(mongoose.connection);
+const upload = multerConfig.upload;
+
+// Route per upload file
+router.post('/upload', authenticate, upload.single('file'), async (req, res) => {
     try {
         console.log('Richiesta a /api/upload ricevuta');
         console.log('req.file:', req.file);
         console.log('req.body:', req.body);
 
-        // VERIFICA ESPLICITA DEI CAMPI
-        const { postId, userId } = req.body;
+        const userId = req.userId; // Usa l'ID utente dal middleware Firebase
+        const { postId } = req.body;
 
         if (!postId) {
             console.log('PostId mancante');
@@ -39,14 +59,13 @@ router.post('/api/upload', upload.single('file'), async (req, res) => {
             fileId: req.file.id,
             mimetype: req.file.mimetype,
             size: req.file.size,
-            postId: postId,  // Usa il postId estratto dal body
-            userId: userId   // Aggiungi userId se necessario
+            postId: postId,
+            userId: userId
         });
 
         await fileDoc.save();
 
-        // Costruisci l'URL del file
-        const fileUrl = `${req.protocol}://${req.get('host')}/api/media/files/${fileDoc.filename}`;
+        const fileUrl = `${req.protocol}://${req.get('host')}/api/files/${fileDoc.filename}`;
 
         res.status(201).json({
             success: true,
@@ -69,3 +88,53 @@ router.post('/api/upload', upload.single('file'), async (req, res) => {
         });
     }
 });
+
+// Route per recuperare un file specifico
+router.get('/files/:filename', async (req, res) => {
+    try {
+        console.log('Richiesta recupero file:', req.params.filename);
+
+        const file = await File.findOne({ filename: req.params.filename });
+        
+        if (!file) {
+            console.log('File non trovato:', req.params.filename);
+            return res.status(404).json({ 
+                success: false,
+                error: 'File non trovato',
+                filename: req.params.filename
+            });
+        }
+
+        console.log('File trovato:', {
+            id: file._id,
+            filename: file.filename,
+            mimetype: file.mimetype,
+            size: file.size
+        });
+
+        res.set('Content-Type', file.mimetype);
+
+        const downloadStream = gfs.openDownloadStreamByName(file.filename);
+        
+        downloadStream.on('error', (error) => {
+            console.error('Errore durante lo streaming del file:', error);
+            res.status(500).json({ 
+                success: false,
+                error: 'Errore durante il download del file',
+                details: error.message
+            });
+        });
+
+        downloadStream.pipe(res);
+
+    } catch (error) {
+        console.error('Errore completo recupero file:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Errore interno durante il recupero del file',
+            details: error.message
+        });
+    }
+});
+
+module.exports = router;
