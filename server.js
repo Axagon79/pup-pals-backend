@@ -5,12 +5,16 @@ const cors = require('cors');
 const multer = require('multer');
 const configureMulter = require('./config/multer');
 
+// Validazione variabili d'ambiente
+if (!process.env.MONGODB_URI) {
+  console.error('ERRORE: MONGODB_URI non definito');
+  process.exit(1);
+}
+
 const app = express();
 const port = process.env.PORT || 5000;
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pup-pals';
-
-// Configurazione CORS più robusta
+// Configurazione CORS avanzata
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -21,11 +25,11 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Non autorizzato da CORS'));
+      callback(new Error('Origine non autorizzata'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
@@ -48,11 +52,7 @@ app.use((req, res, next) => {
 // Funzione di connessione a MongoDB
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000
-    });
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connesso a MongoDB');
     return mongoose.connection;
   } catch (error) {
@@ -99,55 +99,65 @@ const startServer = async () => {
 
     const Post = mongoose.model('Post', PostSchema);
 
+    // Middleware di validazione upload
+    const validateUpload = (req, res, next) => {
+      const { postId, userId } = req.body;
+      
+      if (!postId) {
+        return res.status(400).json({ error: 'postId mancante' });
+      }
+
+      if (!userId) {
+        return res.status(400).json({ error: 'userId mancante' });
+      }
+
+      next();
+    };
+
     // Route di upload file
-    app.post('/api/upload', upload.single('file'), async (req, res, next) => {
-      try {
-        if (!req.file) {
-          return res.status(400).json({ error: 'Nessun file caricato' });
-        }
+    app.post('/api/upload', 
+      validateUpload, 
+      upload.single('file'), 
+      async (req, res, next) => {
+        try {
+          if (!req.file) {
+            return res.status(400).json({ error: 'Nessun file caricato' });
+          }
 
-        if (!req.body.postId) {
-          return res.status(400).json({ error: 'postId mancante' });
-        }
+          const { filename, fileId } = await saveFileToGridFS(req.file);
 
-        const userId = req.body.userId;
-        if (!userId) {
-          return res.status(400).json({ error: 'userId mancante' });
-        }
-
-        const { filename, fileId } = await saveFileToGridFS(req.file);
-
-        const fileDoc = new File({
-          filename,
-          originalName: req.file.originalname,
-          fileId,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-          postId: req.body.postId,
-          userId: userId
-        });
-
-        await fileDoc.save();
-
-        const post = await Post.findById(req.body.postId);
-        if (post) {
-          post.files.push(fileId);
-          await post.save();
-        }
-
-        res.json({
-          success: true,
-          file: {
-            id: fileId,
+          const fileDoc = new File({
             filename,
             originalName: req.file.originalname,
-            url: `/api/files/${filename}`
+            fileId,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            postId: req.body.postId,
+            userId: req.body.userId
+          });
+
+          await fileDoc.save();
+
+          const post = await Post.findById(req.body.postId);
+          if (post) {
+            post.files.push(fileId);
+            await post.save();
           }
-        });
-      } catch (error) {
-        next(error);
+
+          res.json({
+            success: true,
+            file: {
+              id: fileId,
+              filename,
+              originalName: req.file.originalname,
+              url: `/api/files/${filename}`
+            }
+          });
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
@@ -209,6 +219,15 @@ const startServer = async () => {
       }
     });
 
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+      });
+    });
+
     // Middleware di gestione errori Multer
     app.use((err, req, res, next) => {
       if (err instanceof multer.MulterError) {
@@ -220,7 +239,7 @@ const startServer = async () => {
       next(err);
     });
 
-    // Middleware di errore globale
+    // Middleware di errore globale (continua)
     app.use((err, req, res, next) => {
       console.error('Errore non gestito:', err);
       res.status(500).json({ 
@@ -246,10 +265,25 @@ const startServer = async () => {
       });
     });
 
-  } catch (error) {
-    console.error('Errore durante l\'avvio del server:', error);
-    process.exit(1);
-  }
+    // Gestione errori non catturati
+    process.on('uncaughtException', (error) => {
+      console.error('Eccezione non catturata:', error);
+      mongoose.connection.close(false, () => {
+        process.exit(1);
+      });
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Promessa non gestita:', reason);
+      mongoose.connection.close(false, () => {
+        process.exit(1);
+      });
+    });
+
+} catch (error) {
+console.error('Errore durante l\'avvio del server:', error);
+process.exit(1);
+}
 };
 
 // Avvia il server
