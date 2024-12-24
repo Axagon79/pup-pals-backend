@@ -4,8 +4,18 @@ const crypto = require('crypto');
 const path = require('path');
 
 const configureMulter = (mongooseConnection) => {
-  // Usa la stringa di connessione dalla connessione Mongoose
-  const mongoUri = mongooseConnection.connection.client.s.url;
+  console.log('Connessione ricevuta:', mongooseConnection);
+
+  if (!mongooseConnection) {
+    throw new Error('Connessione MongoDB non fornita');
+  }
+
+  // Usa la stringa di connessione dell'ambiente
+  const mongoUri = process.env.MONGODB_URI;
+
+  if (!mongoUri) {
+    throw new Error('Stringa di connessione MongoDB non definita');
+  }
 
   // Configura GridFS Storage
   const storage = new GridFsStorage({
