@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const multer = require('multer');
 const configureMulter = require('./config/multer');
 
 const app = express();
@@ -9,10 +10,22 @@ const port = process.env.PORT || 5000;
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pup-pals';
 
+// Configurazione CORS più robusta
 const corsOptions = {
-  origin: 'https://pup-pals.vercel.app', // Dominio frontend
-  credentials: true, // Abilita credenziali
-  methods: ['GET', 'POST', 'OPTIONS'], // Metodi HTTP consentiti
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://pup-pals.vercel.app', 
+      'http://localhost:3000'
+    ];
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Non autorizzato da CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
@@ -21,20 +34,49 @@ const corsOptions = {
   ]
 };
 
+// Middleware di base
 app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-let upload, saveFileToGridFS, deleteFileFromGridFS, bucket;
+// Middleware di logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
-mongoose.connect(MONGODB_URI)
-  .then(async () => {
+// Funzione di connessione a MongoDB
+const connectDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000
+    });
     console.log('Connesso a MongoDB');
-    
-    const multerConfig = await configureMulter(mongoose.connection);
-    upload = multerConfig.upload;
-    saveFileToGridFS = multerConfig.saveFileToGridFS;
-    deleteFileFromGridFS = multerConfig.deleteFileFromGridFS;
-    bucket = multerConfig.bucket;
+    return mongoose.connection;
+  } catch (error) {
+    console.error('Errore di connessione a MongoDB:', error);
+    process.exit(1);
+  }
+};
 
+// Funzione principale di avvio del server
+const startServer = async () => {
+  try {
+    // Connetti al database
+    const connection = await connectDB();
+
+    // Configura Multer
+    const multerConfig = await configureMulter(connection);
+    const { 
+      upload, 
+      saveFileToGridFS, 
+      deleteFileFromGridFS, 
+      bucket 
+    } = multerConfig;
+
+    // Definizione modelli
     const FileSchema = new mongoose.Schema({
       filename: String,
       originalName: String,
@@ -57,7 +99,8 @@ mongoose.connect(MONGODB_URI)
 
     const Post = mongoose.model('Post', PostSchema);
 
-    app.post('/api/upload', upload.single('file'), async (req, res) => {
+    // Route di upload file
+    app.post('/api/upload', upload.single('file'), async (req, res, next) => {
       try {
         if (!req.file) {
           return res.status(400).json({ error: 'Nessun file caricato' });
@@ -97,15 +140,16 @@ mongoose.connect(MONGODB_URI)
           file: {
             id: fileId,
             filename,
+            originalName: req.file.originalname,
             url: `/api/files/${filename}`
           }
         });
       } catch (error) {
-        console.error('Errore upload:', error);
-        res.status(500).json({ error: error.message });
+        next(error);
       }
     });
 
+    // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
       try {
         const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
@@ -128,6 +172,7 @@ mongoose.connect(MONGODB_URI)
       }
     });
 
+    // Route per recuperare file di un post
     app.get('/api/files/post/:postId', async (req, res) => {
       try {
         const files = await File.find({ postId: req.params.postId });
@@ -138,6 +183,7 @@ mongoose.connect(MONGODB_URI)
       }
     });
 
+    // Route per eliminare un file
     app.delete('/api/files/:filename', async (req, res) => {
       try {
         const file = await File.findOne({ filename: req.params.filename });
@@ -163,13 +209,48 @@ mongoose.connect(MONGODB_URI)
       }
     });
 
+    // Middleware di gestione errori Multer
     app.use((err, req, res, next) => {
-      console.error(err.stack);
-      res.status(500).json({ error: err.message });
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ 
+          error: 'Errore durante l\'upload',
+          details: err.message 
+        });
+      }
+      next(err);
     });
 
-    app.listen(port, () => {
+    // Middleware di errore globale
+    app.use((err, req, res, next) => {
+      console.error('Errore non gestito:', err);
+      res.status(500).json({ 
+        error: 'Errore interno del server',
+        message: err.message 
+      });
+    });
+
+    // Avvia il server
+    const server = app.listen(port, () => {
       console.log(`Server in esecuzione sulla porta ${port}`);
     });
-  })
-  .catch(err => console.error('Errore di connessione a MongoDB:', err));
+
+    // Gestione chiusura server
+    process.on('SIGTERM', () => {
+      console.log('Processo SIGTERM ricevuto. Chiusura server...');
+      server.close(() => {
+        console.log('Server chiuso');
+        mongoose.connection.close(false, () => {
+          console.log('Connessione MongoDB chiusa');
+          process.exit(0);
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('Errore durante l\'avvio del server:', error);
+    process.exit(1);
+  }
+};
+
+// Avvia il server
+startServer();

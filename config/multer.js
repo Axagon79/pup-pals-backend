@@ -12,17 +12,13 @@ const configureMulter = (mongooseConnection) => {
     throw new Error('Connessione MongoDB non fornita');
   }
   
-  // Attendiamo che la connessione sia pronta
   return new Promise((resolve, reject) => {
-    if (mongooseConnection.readyState === 1) {
-      setup();
-    } else {
-      mongooseConnection.on('connected', setup);
-    }
-
-    function setup() {
+    const setup = () => {
       try {
-        const bucket = new GridFSBucket(mongooseConnection.db, {
+        // Usa la connessione del database direttamente
+        const db = mongooseConnection.connection.db;
+        
+        const bucket = new GridFSBucket(db, {
           bucketName: 'uploads'
         });
 
@@ -30,9 +26,23 @@ const configureMulter = (mongooseConnection) => {
 
         const upload = multer({
           storage,
-          limits: { fileSize: 20 * 1024 * 1024 },
+          limits: { 
+            fileSize: 50 * 1024 * 1024, // Aumentato a 50MB
+            files: 1 // Limita a un file per volta
+          },
           fileFilter: (req, file, cb) => {
-            const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
+            const allowedMimes = [
+              'image/jpeg', 
+              'image/png', 
+              'image/gif', 
+              'image/webp',
+              'video/mp4', 
+              'video/quicktime', 
+              'video/x-msvideo',
+              'audio/mpeg',
+              'audio/wav'
+            ];
+            
             if (allowedMimes.includes(file.mimetype)) {
               cb(null, true);
             } else {
@@ -43,12 +53,30 @@ const configureMulter = (mongooseConnection) => {
 
         const saveFileToGridFS = async (file) => {
           const filename = generateFileName(file);
-          const uploadStream = bucket.openUploadStream(filename);
-          uploadStream.end(file.buffer);
-
+          
           return new Promise((resolve, reject) => {
-            uploadStream.on('finish', () => resolve({ filename, fileId: uploadStream.id }));
-            uploadStream.on('error', reject);
+            const uploadStream = bucket.openUploadStream(filename, {
+              metadata: {
+                originalName: file.originalname,
+                mimetype: file.mimetype
+              }
+            });
+            
+            uploadStream.on('finish', () => {
+              resolve({ 
+                filename, 
+                fileId: uploadStream.id 
+              });
+            });
+
+            uploadStream.on('error', (error) => {
+              console.error('Errore durante il salvataggio del file:', error);
+              reject(error);
+            });
+
+            // Scrivi il buffer nel flusso
+            uploadStream.write(file.buffer);
+            uploadStream.end();
           });
         };
 
@@ -61,10 +89,48 @@ const configureMulter = (mongooseConnection) => {
           }
         };
 
-        resolve({ upload, saveFileToGridFS, deleteFileFromGridFS, bucket });
+        const getFileFromGridFS = async (filename) => {
+          return new Promise((resolve, reject) => {
+            const downloadStream = bucket.openDownloadStreamByName(filename);
+            const chunks = [];
+
+            downloadStream.on('data', (chunk) => {
+              chunks.push(chunk);
+            });
+
+            downloadStream.on('error', (error) => {
+              reject(error);
+            });
+
+            downloadStream.on('end', () => {
+              const fileBuffer = Buffer.concat(chunks);
+              resolve(fileBuffer);
+            });
+          });
+        };
+
+        resolve({ 
+          upload, 
+          saveFileToGridFS, 
+          deleteFileFromGridFS, 
+          getFileFromGridFS,
+          bucket 
+        });
       } catch (error) {
+        console.error('Errore durante la configurazione di Multer:', error);
         reject(error);
       }
+    };
+
+    // Gestisci lo stato della connessione
+    if (mongooseConnection.connection.readyState === 1) {
+      setup();
+    } else {
+      mongooseConnection.connection.once('connected', setup);
+      mongooseConnection.connection.on('error', (error) => {
+        console.error('Errore di connessione MongoDB:', error);
+        reject(error);
+      });
     }
   });
 };
