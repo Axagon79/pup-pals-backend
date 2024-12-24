@@ -25,7 +25,7 @@ mongoose.connection.once('open', () => {
 });
 
 // Rotta per l'upload
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Nessun file caricato' });
