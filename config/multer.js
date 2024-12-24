@@ -8,15 +8,27 @@ const generateFileName = (file) => {
 };
 
 const configureMulter = (mongooseConnection) => {
+  console.log('Connessione ricevuta:', mongooseConnection);
+  
   if (!mongooseConnection) {
     throw new Error('Connessione MongoDB non fornita');
   }
   
   return new Promise((resolve, reject) => {
+    // Verifica se la connessione ha la proprietà connection
+    const connection = mongooseConnection.connection || mongooseConnection;
+    
+    console.log('Stato connessione:', connection.readyState);
+    
     const setup = () => {
       try {
-        // Usa la connessione del database direttamente
-        const db = mongooseConnection.connection.db;
+        // Usa il database dalla connessione
+        const db = connection.db;
+        console.log('Database:', db);
+        
+        if (!db) {
+          throw new Error('Database non disponibile');
+        }
         
         const bucket = new GridFSBucket(db, {
           bucketName: 'uploads'
@@ -40,14 +52,13 @@ const configureMulter = (mongooseConnection) => {
               'video/quicktime', 
               'video/x-msvideo',
               'audio/mpeg',
-              'audio/wav',
-              'application/pdf'
+              'audio/wav'
             ];
             
             if (allowedMimes.includes(file.mimetype)) {
               cb(null, true);
             } else {
-              cb(new Error(`Tipo di file non supportato: ${file.mimetype}`), false);
+              cb(new Error('Tipo di file non supportato'), false);
             }
           }
         });
@@ -59,8 +70,7 @@ const configureMulter = (mongooseConnection) => {
             const uploadStream = bucket.openUploadStream(filename, {
               metadata: {
                 originalName: file.originalname,
-                mimetype: file.mimetype,
-                uploadedAt: new Date()
+                mimetype: file.mimetype
               }
             });
             
@@ -72,7 +82,7 @@ const configureMulter = (mongooseConnection) => {
             });
 
             uploadStream.on('error', (error) => {
-              console.error(`Errore durante il salvataggio del file ${filename}:`, error);
+              console.error('Errore durante il salvataggio del file:', error);
               reject(error);
             });
 
@@ -85,9 +95,8 @@ const configureMulter = (mongooseConnection) => {
         const deleteFileFromGridFS = async (fileId) => {
           try {
             await bucket.delete(fileId);
-            console.log(`File con ID ${fileId} eliminato con successo`);
           } catch (error) {
-            console.error(`Errore durante l'eliminazione del file con ID ${fileId}:`, error);
+            console.error('Errore durante l\'eliminazione del file:', error);
             throw error;
           }
         };
@@ -102,7 +111,6 @@ const configureMulter = (mongooseConnection) => {
             });
 
             downloadStream.on('error', (error) => {
-              console.error(`Errore durante il download del file ${filename}:`, error);
               reject(error);
             });
 
@@ -121,14 +129,12 @@ const configureMulter = (mongooseConnection) => {
           bucket 
         });
       } catch (error) {
-        console.error('Errore durante la configurazione di Multer:', error);
+        console.error('Errore durante setup:', error);
         reject(error);
       }
     };
 
     // Gestisci lo stato della connessione
-    const connection = mongooseConnection.connection;
-    
     if (connection.readyState === 1) {
       setup();
     } else {
