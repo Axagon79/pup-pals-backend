@@ -68,7 +68,7 @@ const startServer = async () => {
     const connection = await connectDB();
 
     // Configura Multer
-    const multerConfig = await configureMulter(connection);
+    const multerConfig = await configureMulter(mongoose.connection);
     const { 
       upload, 
       saveFileToGridFS, 

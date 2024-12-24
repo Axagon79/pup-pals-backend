@@ -27,7 +27,7 @@ const configureMulter = (mongooseConnection) => {
         const upload = multer({
           storage,
           limits: { 
-            fileSize: 50 * 1024 * 1024, // Aumentato a 50MB
+            fileSize: 50 * 1024 * 1024, // 50MB
             files: 1 // Limita a un file per volta
           },
           fileFilter: (req, file, cb) => {
@@ -40,13 +40,14 @@ const configureMulter = (mongooseConnection) => {
               'video/quicktime', 
               'video/x-msvideo',
               'audio/mpeg',
-              'audio/wav'
+              'audio/wav',
+              'application/pdf'
             ];
             
             if (allowedMimes.includes(file.mimetype)) {
               cb(null, true);
             } else {
-              cb(new Error('Tipo di file non supportato'), false);
+              cb(new Error(`Tipo di file non supportato: ${file.mimetype}`), false);
             }
           }
         });
@@ -58,7 +59,8 @@ const configureMulter = (mongooseConnection) => {
             const uploadStream = bucket.openUploadStream(filename, {
               metadata: {
                 originalName: file.originalname,
-                mimetype: file.mimetype
+                mimetype: file.mimetype,
+                uploadedAt: new Date()
               }
             });
             
@@ -70,7 +72,7 @@ const configureMulter = (mongooseConnection) => {
             });
 
             uploadStream.on('error', (error) => {
-              console.error('Errore durante il salvataggio del file:', error);
+              console.error(`Errore durante il salvataggio del file ${filename}:`, error);
               reject(error);
             });
 
@@ -83,8 +85,9 @@ const configureMulter = (mongooseConnection) => {
         const deleteFileFromGridFS = async (fileId) => {
           try {
             await bucket.delete(fileId);
+            console.log(`File con ID ${fileId} eliminato con successo`);
           } catch (error) {
-            console.error('Errore durante l\'eliminazione del file:', error);
+            console.error(`Errore durante l'eliminazione del file con ID ${fileId}:`, error);
             throw error;
           }
         };
@@ -99,6 +102,7 @@ const configureMulter = (mongooseConnection) => {
             });
 
             downloadStream.on('error', (error) => {
+              console.error(`Errore durante il download del file ${filename}:`, error);
               reject(error);
             });
 
@@ -123,11 +127,13 @@ const configureMulter = (mongooseConnection) => {
     };
 
     // Gestisci lo stato della connessione
-    if (mongooseConnection.connection.readyState === 1) {
+    const connection = mongooseConnection.connection;
+    
+    if (connection.readyState === 1) {
       setup();
     } else {
-      mongooseConnection.connection.once('connected', setup);
-      mongooseConnection.connection.on('error', (error) => {
+      connection.once('connected', setup);
+      connection.on('error', (error) => {
         console.error('Errore di connessione MongoDB:', error);
         reject(error);
       });
