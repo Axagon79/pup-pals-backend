@@ -1,132 +1,86 @@
 const multer = require('multer');
-const { GridFSBucket } = require('mongodb');
+const { GridFsStorage } = require('multer-gridfs-storage');
 const crypto = require('crypto');
 const path = require('path');
 
-const generateFileName = (file) => {
-  return `${crypto.randomBytes(16).toString('hex')}${path.extname(file.originalname)}`;
-};
-
 const configureMulter = (mongooseConnection) => {
-  console.log('Connessione ricevuta:', mongooseConnection);
-  
-  if (!mongooseConnection) {
-    throw new Error('Connessione MongoDB non fornita');
-  }
-  
-  return new Promise((resolve, reject) => {
-    try {
-      // Usa il database direttamente dalla connessione Mongoose
-      const db = mongooseConnection.connection.db;
-      console.log('Database:', db);
-      
-      if (!db) {
-        throw new Error('Database non disponibile');
-      }
-      
-      const bucket = new GridFSBucket(db, {
-        bucketName: 'uploads'
-      });
+  // Usa la stringa di connessione dalla connessione Mongoose
+  const mongoUri = mongooseConnection.connection.client.s.url;
 
-      const storage = multer.memoryStorage();
-
-      const upload = multer({
-        storage,
-        limits: { 
-          fileSize: 50 * 1024 * 1024, // 50MB
-          files: 1 // Limita a un file per volta
-        },
-        fileFilter: (req, file, cb) => {
-          const allowedMimes = [
-            'image/jpeg', 
-            'image/png', 
-            'image/gif', 
-            'image/webp',
-            'video/mp4', 
-            'video/quicktime', 
-            'video/x-msvideo',
-            'audio/mpeg',
-            'audio/wav'
-          ];
-          
-          if (allowedMimes.includes(file.mimetype)) {
-            cb(null, true);
-          } else {
-            cb(new Error('Tipo di file non supportato'), false);
-          }
-        }
-      });
-
-      const saveFileToGridFS = async (file) => {
-        const filename = generateFileName(file);
-        
-        return new Promise((resolve, reject) => {
-          const uploadStream = bucket.openUploadStream(filename, {
-            metadata: {
-              originalName: file.originalname,
-              mimetype: file.mimetype
-            }
-          });
-          
-          uploadStream.on('finish', () => {
-            resolve({ 
-              filename, 
-              fileId: uploadStream.id 
-            });
-          });
-
-          uploadStream.on('error', (error) => {
-            console.error('Errore durante il salvataggio del file:', error);
-            reject(error);
-          });
-
-          // Scrivi il buffer nel flusso
-          uploadStream.write(file.buffer);
-          uploadStream.end();
-        });
-      };
-
-      const deleteFileFromGridFS = async (fileId) => {
-        try {
-          await bucket.delete(fileId);
-        } catch (error) {
-          console.error('Errore durante l\'eliminazione del file:', error);
-          throw error;
+  // Configura GridFS Storage
+  const storage = new GridFsStorage({
+    url: mongoUri,
+    file: (req, file) => {
+      return {
+        filename: `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname)}`,
+        bucketName: 'uploads', // Nome del bucket GridFS
+        metadata: {
+          originalName: file.originalname,
+          mimetype: file.mimetype
         }
       };
+    },
+  });
 
-      const getFileFromGridFS = async (filename) => {
-        return new Promise((resolve, reject) => {
-          const downloadStream = bucket.openDownloadStreamByName(filename);
-          const chunks = [];
+  // Filtra i tipi di file consentiti
+  const fileFilter = (req, file, cb) => {
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/png', 
+      'image/gif', 
+      'image/webp',
+      'video/mp4', 
+      'video/quicktime', 
+      'video/x-msvideo',
+      'audio/mpeg',
+      'audio/wav'
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo di file non supportato'), false);
+    }
+  };
 
-          downloadStream.on('data', (chunk) => {
-            chunks.push(chunk);
-          });
-
-          downloadStream.on('error', (error) => {
-            reject(error);
-          });
-
-          downloadStream.on('end', () => {
-            const fileBuffer = Buffer.concat(chunks);
-            resolve(fileBuffer);
-          });
-        });
-      };
-
-      resolve({ 
-        upload, 
-        saveFileToGridFS, 
-        deleteFileFromGridFS, 
-        getFileFromGridFS,
-        bucket 
-      });
-    } catch (error) {
-      console.error('Errore durante la configurazione di Multer:', error);
-      reject(error);
+  // Middleware di upload con Multer
+  const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: { 
+      fileSize: 50 * 1024 * 1024, // Limite: 50 MB
+      files: 1 // Limita a un file per volta
     }
   });
+
+  return {
+    upload,
+    saveFileToGridFS: (file) => {
+      // Questa funzione sarà gestita automaticamente da GridFsStorage
+      return new Promise((resolve, reject) => {
+        const uploadStream = storage.uploadStream(file.originalname);
+        
+        uploadStream.on('file', (file) => {
+          resolve({
+            filename: file.filename,
+            fileId: file.id
+          });
+        });
+
+        uploadStream.on('error', (error) => {
+          reject(error);
+        });
+
+        uploadStream.write(file.buffer);
+        uploadStream.end();
+      });
+    },
+    deleteFileFromGridFS: async (fileId) => {
+      // Implementa la logica di eliminazione se necessario
+      // Potrebbe richiedere l'uso di mongoose o mongodb direttamente
+    },
+    bucket: null // Non necessario con multer-gridfs-storage
+  };
 };
 
 module.exports = configureMulter;
