@@ -16,10 +16,8 @@ const configureMulter = (mongooseConnection) => {
   
   return new Promise((resolve, reject) => {
     try {
-      // Usa il client MongoDB direttamente
-      const client = mongooseConnection.connection.getClient();
-      const db = client.db(mongooseConnection.connection.db.databaseName);
-      
+      // Usa il database direttamente dalla connessione Mongoose
+      const db = mongooseConnection.connection.db;
       console.log('Database:', db);
       
       if (!db) {
