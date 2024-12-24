@@ -4,35 +4,54 @@ const crypto = require('crypto');
 const path = require('path');
 
 const configureMulter = (mongooseConnection) => {
-  console.log('Connessione ricevuta:', mongooseConnection);
+  console.log('Configurazione Multer iniziata');
 
-  if (!mongooseConnection) {
-    throw new Error('Connessione MongoDB non fornita');
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI non definito nelle variabili d\'ambiente');
   }
 
-  // Usa la stringa di connessione dell'ambiente
-  const mongoUri = process.env.MONGODB_URI;
-
-  if (!mongoUri) {
-    throw new Error('Stringa di connessione MongoDB non definita');
-  }
-
-  // Configura GridFS Storage
+  // Crea storage GridFS
   const storage = new GridFsStorage({
-    url: mongoUri,
-    file: (req, file) => {
-      return {
-        filename: `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname)}`,
-        bucketName: 'uploads', // Nome del bucket GridFS
-        metadata: {
-          originalName: file.originalname,
-          mimetype: file.mimetype
-        }
-      };
+    url: process.env.MONGODB_URI,
+    options: {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
     },
+    file: (req, file) => {
+      return new Promise((resolve, reject) => {
+        crypto.randomBytes(16, (err, buf) => {
+          if (err) {
+            return reject(err);
+          }
+          
+          const filename = buf.toString('hex') + path.extname(file.originalname);
+          const fileInfo = {
+            filename: filename,
+            bucketName: 'uploads',
+            metadata: {
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              userId: req.body.userId,
+              postId: req.body.postId
+            }
+          };
+          
+          console.log('File info creato:', fileInfo);
+          resolve(fileInfo);
+        });
+      });
+    }
   });
 
-  // Filtra i tipi di file consentiti
+  // Gestione errori storage
+  storage.on('connectionError', function(err) {
+    console.error('Errore connessione GridFS:', err);
+  });
+
+  storage.on('error', function(err) {
+    console.error('Errore GridFS:', err);
+  });
+
   const fileFilter = (req, file, cb) => {
     const allowedTypes = [
       'image/jpeg', 
@@ -49,47 +68,44 @@ const configureMulter = (mongooseConnection) => {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Tipo di file non supportato'), false);
+      cb(new Error(`Tipo file non supportato: ${file.mimetype}`), false);
     }
   };
 
-  // Middleware di upload con Multer
   const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: { 
-      fileSize: 50 * 1024 * 1024, // Limite: 50 MB
-      files: 1 // Limita a un file per volta
+      fileSize: 50 * 1024 * 1024, // 50MB
+      files: 1
     }
   });
 
   return {
     upload,
-    saveFileToGridFS: (file) => {
-      // Questa funzione sarà gestita automaticamente da GridFsStorage
-      return new Promise((resolve, reject) => {
-        const uploadStream = storage.uploadStream(file.originalname);
-        
-        uploadStream.on('file', (file) => {
-          resolve({
-            filename: file.filename,
-            fileId: file.id
-          });
-        });
-
-        uploadStream.on('error', (error) => {
-          reject(error);
-        });
-
-        uploadStream.write(file.buffer);
-        uploadStream.end();
-      });
+    storage,
+    // Metodo per salvare file
+    saveFile: async (fileData) => {
+      try {
+        const uploadResponse = await storage.fromFile(fileData);
+        console.log('File salvato:', uploadResponse);
+        return uploadResponse;
+      } catch (error) {
+        console.error('Errore salvataggio file:', error);
+        throw error;
+      }
     },
-    deleteFileFromGridFS: async (fileId) => {
-      // Implementa la logica di eliminazione se necessario
-      // Potrebbe richiedere l'uso di mongoose o mongodb direttamente
-    },
-    bucket: null // Non necessario con multer-gridfs-storage
+    // Metodo per eliminare file
+    deleteFile: async (fileId) => {
+      try {
+        await storage.delete(fileId);
+        console.log('File eliminato:', fileId);
+        return true;
+      } catch (error) {
+        console.error('Errore eliminazione file:', error);
+        throw error;
+      }
+    }
   };
 };
 

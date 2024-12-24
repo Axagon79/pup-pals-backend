@@ -4,13 +4,27 @@ const Post = require('../models/Post'); // Importa il modello Post
 
 // Middleware per verificare l'autenticazione (da implementare)
 const authenticate = require('../middlewares/auth'); // Assicurati di avere un middleware di autenticazione
+const multerConfig = configureMulter(mongoose.connection);
+const upload = multerConfig.upload.single('file');
+
+router.post('/upload', (req, res) => {
+  upload(req, res, function(err) {
+    if (err) {
+      console.error('Errore upload:', err);
+      return res.status(400).json({ error: err.message });
+    }
+    // Gestisci il successo
+    res.json({ file: req.file });
+  });
+});
+    
+
 
 // Rotta per creare un nuovo post
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { content, userId } = req.body; // Prendi content e userId dal body
+    const { content, userId } = req.body; 
 
-    // Verifica autorizzazione: l'utente autenticato è l'autore del post?
     if (req.userId !== userId) {
       return res.status(403).json({ error: 'Non autorizzato' });
     }
@@ -63,6 +77,6 @@ router.get('/:postId', async (req, res) => {
   }
 });
 
-// ... altre rotte per i post (update, delete, etc.) ...
+
 
 module.exports = router;
