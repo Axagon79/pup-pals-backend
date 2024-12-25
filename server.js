@@ -6,7 +6,7 @@ const configureMulter = require('./config/multer');
 const path = require('path');
 const mediaRoutes = require('./routes/mediaRoutes');
 const postRoutes = require('./routes/postRoutes');
-const corsMiddleware = require('./middleware/corsMiddleware');
+const cors = require('cors'); // Importa il pacchetto cors
 
 // Validazione variabili d'ambiente
 if (!process.env.MONGODB_URI) {
@@ -17,8 +17,13 @@ if (!process.env.MONGODB_URI) {
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Configura CORS prima di qualsiasi altro middleware o rotta
+app.use(cors({
+  origin: 'https://pup-pals.vercel.app' // Consigliato per produzione: specifica l'origine del tuo frontend
+  // origin: '*' // Per sviluppo: accetta richieste da qualsiasi origine (meno sicuro)
+}));
+
 // Middleware di base
-app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -75,8 +80,6 @@ const startServer = async () => {
       deleteFileFromGridFS, 
       bucket 
     } = multerConfig;
-
-    app.options('*', corsMiddleware);
 
     app.use((req, res, next) => {
       console.log(`
