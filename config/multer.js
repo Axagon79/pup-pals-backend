@@ -59,8 +59,7 @@ const configureMulter = (mongooseConnection) => {
       });
     },
     options: {
-      useNewUrlParser: false,
-      useUnifiedTopology: false
+      options: {} 
     }
   });
 
@@ -75,6 +74,7 @@ const configureMulter = (mongooseConnection) => {
   const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
+      console.log('File ricevuto:', file);
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'];
 
       if (allowedTypes.includes(file.mimetype)) {
@@ -85,10 +85,10 @@ const configureMulter = (mongooseConnection) => {
       }
     },
     limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB
-      files: 1
+        fileSize: 50 * 1024 * 1024,
+        files: 1
     }
-  });
+}).single('file');
 
 
   return { upload, storage }; // Puoi rimuovere saveFile e deleteFile se non li usi direttamente qui

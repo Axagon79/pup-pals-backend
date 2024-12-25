@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const multer = require('multer'); // Importa multer
+const multer = require('multer');
 const configureMulter = require('../config/multer');
 const File = require('../models/File');
 const authenticate = require('../middleware/auth');
@@ -19,105 +19,109 @@ const multerConfig = configureMulter(mongoose.connection);
 const upload = multerConfig.upload;
 
 // Route per upload file
-router.post('/upload', authenticate, (req, res) => {
-    upload.single('file')(req, res, async (err) => { // Gestione errore DENTRO upload.single
-        if (err) {
-            console.error('Errore Multer:', err);
-            if (err instanceof multer.MulterError) {
-                // Gestione errori specifici di Multer
-                if (err.code === 'LIMIT_FILE_SIZE') {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'File too large',
-                        details: 'The file exceeds the maximum allowed size'
-                    });
-                } else {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'File upload error',
-                        details: err.message
-                    });
+router.post('/upload', authenticate, async (req, res) => {
+    console.log('Inizio processo di upload');
+    
+    try {
+        // Utilizzo di una Promise per gestire l'upload
+        await new Promise((resolve, reject) => {
+            upload.single('file')(req, res, (err) => {
+                if (err) {
+                    console.error('Errore durante upload:', err);
+                    reject(err);
+                    return;
                 }
-            } else {
-                // Gestione altri errori
-                return res.status(500).json({
-                    success: false,
-                    error: 'Internal server error during upload',
-                    details: err.message
-                });
-            }
-        }
-
-        // Se arrivi qui, l'upload è andato a buon fine (nessun errore in upload.single)
-        try {
-            console.log('Richiesta a /api/upload ricevuta');
-            console.log('req.file:', req.file);
-            console.log('req.body:', req.body);
-
-            const userId = req.userId;
-            const { postId } = req.body;
-
-            if (!postId) {
-                console.log('PostId mancante');
-                return res.status(400).json({
-                    success: false,
-                    error: 'postId mancante',
-                    receivedData: req.body
-                });
-            }
-
-            if (!userId) {
-                console.log('UserId mancante');
-                return res.status(400).json({
-                    success: false,
-                    error: 'userId mancante',
-                    receivedData: req.body
-                });
-            }
-
-            if (!req.file) {
-                console.log('Nessun file caricato');
-                return res.status(400).json({
-                    success: false,
-                    error: 'Nessun file caricato'
-                });
-            }
-
-            const fileDoc = new File({
-                filename: req.file.filename,
-                originalName: req.file.originalname,
-                fileId: req.file.id,
-                mimetype: req.file.mimetype,
-                size: req.file.size,
-                postId: postId,
-                userId: userId
+                resolve();
             });
+        });
 
-            await fileDoc.save();
+        console.log('Richiesta a /api/upload ricevuta');
+        console.log('req.file:', req.file);
+        console.log('req.body:', req.body);
 
-            const fileUrl = `${req.protocol}://${req.get('host')}/api/files/${fileDoc.filename}`;
+        const userId = req.userId;
+        const { postId } = req.body;
 
-            res.status(201).json({
-                success: true,
-                file: {
-                    id: fileDoc._id,
-                    filename: fileDoc.filename,
-                    url: fileUrl,
-                    originalName: fileDoc.originalName,
-                    mimetype: fileDoc.mimetype,
-                    size: fileDoc.size
-                },
-                postId,
-                userId
-            });
-        } catch (error) {
-            console.error('Errore upload (interno try-catch):', error);
-            res.status(500).json({
+        if (!postId) {
+            console.log('PostId mancante');
+            return res.status(400).json({
                 success: false,
-                error: error.message
+                error: 'postId mancante',
+                receivedData: req.body
             });
         }
-    }); // Fine gestione errore in upload.single
+
+        if (!userId) {
+            console.log('UserId mancante');
+            return res.status(400).json({
+                success: false,
+                error: 'userId mancante',
+                receivedData: req.body
+            });
+        }
+
+        if (!req.file) {
+            console.log('Nessun file ricevuto');
+            return res.status(400).json({
+                success: false,
+                error: 'Nessun file caricato'
+            });
+        }
+
+        console.log('File ricevuto:', {
+            filename: req.file.filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        });
+
+        const fileDoc = new File({
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            fileId: req.file.id,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            postId: postId,
+            userId: userId
+        });
+
+        await fileDoc.save();
+        console.log('File documento salvato:', fileDoc._id);
+
+        const fileUrl = `${req.protocol}://${req.get('host')}/api/files/${fileDoc.filename}`;
+
+        res.status(201).json({
+            success: true,
+            file: {
+                id: fileDoc._id,
+                filename: fileDoc.filename,
+                url: fileUrl,
+                originalName: fileDoc.originalName,
+                mimetype: fileDoc.mimetype,
+                size: fileDoc.size
+            },
+            postId,
+            userId
+        });
+
+    } catch (error) {
+        console.error('Errore completo:', error);
+        
+        // Gestione errori specifici
+        if (error instanceof multer.MulterError) {
+            return res.status(400).json({
+                success: false,
+                error: 'Errore upload file',
+                details: error.message
+            });
+        }
+
+        // Errori generici
+        res.status(500).json({
+            success: false,
+            error: 'Errore interno durante l\'upload',
+            details: error.message
+        });
+    }
 });
 
 // Route per recuperare un file specifico

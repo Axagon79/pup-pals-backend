@@ -1,6 +1,7 @@
 const admin = require('../config/firebaseAdmin');
 
 const authenticate = async (req, res, next) => {
+  console.log('Headers ricevuti:', req.headers);
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {

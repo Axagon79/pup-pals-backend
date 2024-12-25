@@ -19,8 +19,10 @@ const port = process.env.PORT || 5000;
 
 // Configura CORS prima di qualsiasi altro middleware o rotta
 app.use(cors({
-  origin: 'https://pup-pals.vercel.app' // Consigliato per produzione: specifica l'origine del tuo frontend
-  // origin: '*' // Per sviluppo: accetta richieste da qualsiasi origine (meno sicuro)
+  origin: 'https://pup-pals.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 // Middleware di base
@@ -35,35 +37,19 @@ app.use('/api/posts', postRoutes);
 
 
 // Funzione di connessione a MongoDB
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      // Rimuovi opzioni deprecate
-    });
-
-    // Configurazione globale del mongoose
-    mongoose.set('strictQuery', true);
-
-    console.log('Connesso a MongoDB');
-
-    // Gestori eventi connessione
-    mongoose.connection.on('connected', () => {
-      console.log('Mongoose connesso al database');
-    });
-
-    mongoose.connection.on('error', (err) => {
-      console.error('Errore connessione Mongoose:', err);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('Connessione Mongoose disconnessa');
-    });
-
-    return mongoose.connection;
-  } catch (error) {
-    console.error('Errore di connessione a MongoDB:', error);
-    process.exit(1);
+const connectDB = async (retries = 5) => {
+  while (retries > 0) {
+      try {
+          await mongoose.connect(process.env.MONGODB_URI);
+          console.log('Connesso a MongoDB');
+          return mongoose.connection;
+      } catch (error) {
+          console.error(`Tentativo fallito, rimangono ${retries} tentativi`);
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 5000));
+      }
   }
+  throw new Error('Impossibile connettersi a MongoDB');
 };
 
 // Funzione principale di avvio del server

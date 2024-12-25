@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "echo 'No build step required'"
+    "build": "echo 'No build step required'",
+    "debug": "node --inspect server.js"
   },
   "keywords": [
     "social-network",
