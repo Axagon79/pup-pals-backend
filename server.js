@@ -54,17 +54,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', mediaRoutes);
 app.use('/api/posts', postRoutes);
 
-// Middleware di logging dettagliato
-app.use((req, res, next) => {
-  console.log(`
-=== NUOVA RICHIESTA ===
-Timestamp: ${new Date().toISOString()}
-Metodo: ${req.method}
-Path: ${req.path}
-Headers: ${JSON.stringify(req.headers, null, 2)}
-`);
-  next();
-});
+
 
 // Funzione di connessione a MongoDB
 const connectDB = async () => {
