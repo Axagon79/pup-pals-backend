@@ -1,6 +1,7 @@
 const { GridFsStorage } = require('multer-gridfs-storage');
 const crypto = require('crypto');
 const path = require('path');
+const multer = require('multer');
 
 const configureMulter = (mongooseConnection) => {
   const storage = new GridFsStorage({
