@@ -10,6 +10,8 @@ const configureMulter = (mongooseConnection) => {
       return new Promise((resolve, reject) => {
         // Aggiunta di più robusti controlli e logging
         try {
+          console.log("req.body (in multer config):", req.body); // Log di req.body
+          console.log("req.user (in multer config):", req.user); // Log di req.user
           // Gestione errori crypto
           crypto.randomBytes(16, (cryptoErr, buf) => {
             if (cryptoErr) {
@@ -35,10 +37,13 @@ const configureMulter = (mongooseConnection) => {
                 mimetype: file.mimetype,
                 userId: req.body?.userId || req.user?.id || 'unknown',
                 postId: req.body?.postId || 'unknown',
+                
                 uploadTimestamp: new Date().toISOString()
+                
               }
             };
-            
+            console.log("userId (in multer config):", userId); // Log di userId
+                console.log("postId (in multer config):", postId); // Log di postId
             // Log dettagliato
             console.log('Preparazione upload file:', {
               originalName: file.originalname,
