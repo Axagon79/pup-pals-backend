@@ -1,12 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const multer = require('multer');
 const configureMulter = require('./config/multer');
 const path = require('path');
 const mediaRoutes = require('./routes/mediaRoutes');
 const postRoutes = require('./routes/postRoutes');
+const corsMiddleware = require('./middleware/corsMiddleware');
 
 // Validazione variabili d'ambiente
 if (!process.env.MONGODB_URI) {
@@ -17,35 +17,8 @@ if (!process.env.MONGODB_URI) {
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Configurazione CORS avanzata
-const corsOptions = {
-  origin: function (origin, callback) {
-    console.log('Origine richiesta:', origin);
-    const allowedOrigins = [
-      'https://pup-pals.vercel.app',
-      'http://localhost:3000'
-    ];
-
-    if (!origin || allowedOrigins.includes(origin)) {
-      console.log('Origine consentita');
-      callback(null, true);
-    } else {
-      console.log('Origine NON consentita');
-      callback(new Error('Origine non autorizzata'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'Access-Control-Allow-Headers',
-    'Access-Control-Allow-Origin'
-  ]
-};
-
 // Middleware di base
-app.use(cors(corsOptions));
+app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -82,8 +55,6 @@ const startServer = async () => {
       deleteFileFromGridFS, 
       bucket 
     } = multerConfig;
-
-    app.options('*', cors(corsOptions));
 
     app.use((req, res, next) => {
       console.log(`
