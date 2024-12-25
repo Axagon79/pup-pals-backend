@@ -20,13 +20,17 @@ const port = process.env.PORT || 5000;
 // Configurazione CORS avanzata
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log('Origine richiesta:', origin);
     const allowedOrigins = [
-      'https://pup-pals.vercel.app', 
+      'https://pup-pals.vercel.app',
+      'http://localhost:3000'
     ];
 
     if (!origin || allowedOrigins.includes(origin)) {
+      console.log('Origine consentita');
       callback(null, true);
     } else {
+      console.log('Origine NON consentita');
       callback(new Error('Origine non autorizzata'));
     }
   },
@@ -88,6 +92,20 @@ const startServer = async () => {
       deleteFileFromGridFS, 
       bucket 
     } = multerConfig;
+
+    app.options('*', cors(corsOptions));
+
+    app.use((req, res, next) => {
+      console.log(`
+    === NUOVA RICHIESTA ===
+    Metodo: ${req.method}
+    Path: ${req.path}
+    Origin: ${req.headers.origin}
+    Headers: ${JSON.stringify(req.headers, null, 2)}
+    `);
+      next();
+    });
+    
 
     // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
