@@ -25,7 +25,6 @@ const configureMulter = (mongooseConnection) => {
 
             const filename = `${buf.toString('hex')}${path.extname(file.originalname)}`;
 
-            // Dichiarazione e assegnazione di userId e postId DENTRO la callback
             const userId = req.body?.userId || req.user?.id || 'unknown';
             const postId = req.body?.postId || 'unknown';
 
@@ -58,9 +57,7 @@ const configureMulter = (mongooseConnection) => {
         }
       });
     },
-    options: {
-      options: {} 
-    }
+    options: {} // Corretto qui
   });
 
   storage.on('connectionError', (err) => {
@@ -71,6 +68,7 @@ const configureMulter = (mongooseConnection) => {
     console.error('Errore GridFS:', err);
   });
 
+  // MODIFICATO QUI: non chiamare .single('file') qui
   const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
@@ -85,14 +83,12 @@ const configureMulter = (mongooseConnection) => {
       }
     },
     limits: {
-        fileSize: 50 * 1024 * 1024,
-        files: 1
+      fileSize: 50 * 1024 * 1024,
+      files: 1
     }
-}).single('file');
+  });
 
-
-  return { upload, storage }; // Puoi rimuovere saveFile e deleteFile se non li usi direttamente qui
+  return { upload }; // Rimuovi storage dal return se non lo usi altrove
 };
-
 
 module.exports = configureMulter;
