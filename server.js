@@ -76,6 +76,8 @@ const startServer = async () => {
       bucket 
     } = multerConfig;
 
+    app.options('*', corsMiddleware);
+
     app.use((req, res, next) => {
       console.log(`
     === NUOVA RICHIESTA ===

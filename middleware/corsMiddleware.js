@@ -4,13 +4,12 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://pup-pals.vercel.app',
-      'http://localhost:3000',
-      undefined  // Aggiungi questo per consentire richieste senza origine
+      'http://localhost:3000'
     ];
 
     console.log('Origine richiesta:', origin);
 
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       console.log('Origine consentita');
       callback(null, true);
     } else {
