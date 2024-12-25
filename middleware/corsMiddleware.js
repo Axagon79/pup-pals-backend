@@ -1,16 +1,16 @@
-// middleware/corsMiddleware.js
 const cors = require('cors');
 
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://pup-pals.vercel.app',
-      'http://localhost:3000'
+      'http://localhost:3000',
+      undefined  // Aggiungi questo per consentire richieste senza origine
     ];
 
     console.log('Origine richiesta:', origin);
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       console.log('Origine consentita');
       callback(null, true);
     } else {

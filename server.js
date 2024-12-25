@@ -32,8 +32,28 @@ app.use('/api/posts', postRoutes);
 // Funzione di connessione a MongoDB
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+      // Rimuovi opzioni deprecate
+    });
+
+    // Configurazione globale del mongoose
+    mongoose.set('strictQuery', true);
+
     console.log('Connesso a MongoDB');
+
+    // Gestori eventi connessione
+    mongoose.connection.on('connected', () => {
+      console.log('Mongoose connesso al database');
+    });
+
+    mongoose.connection.on('error', (err) => {
+      console.error('Errore connessione Mongoose:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('Connessione Mongoose disconnessa');
+    });
+
     return mongoose.connection;
   } catch (error) {
     console.error('Errore di connessione a MongoDB:', error);
@@ -222,6 +242,13 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+// Chiusura connessione alla chiusura dell'app
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('Connessione Mongoose chiusa per termine applicazione');
+  process.exit(0);
+});
 
 // Avvia il server
 startServer();
