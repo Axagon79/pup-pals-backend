@@ -18,17 +18,6 @@ if (!process.env.MONGODB_URI) {
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware per forzare HTTPS
-app.use((req, res, next) => {
-  if (req.headers['x-forwarded-proto'] !== 'https') {
-    return res.redirect(`https://${req.headers.host}${req.url}`);
-  }
-  next();
-});
-
-// Configura Helmet per sicurezza
-app.use(helmet());
-
 // Configura CORS prima di qualsiasi altro middleware o rotta
 app.use(cors({
   origin: 'https://pup-pals.vercel.app',
@@ -91,14 +80,10 @@ const startServer = async () => {
     // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
       try {
-        // Imposta headers di sicurezza
-        res.setHeader('Content-Security-Policy', 'upgrade-insecure-requests');
-        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-
+        // Imposta headers per consentire il download delle immagini
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        
         const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
 
         downloadStream.on('data', (chunk) => {
