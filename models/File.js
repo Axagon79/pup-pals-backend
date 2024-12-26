@@ -5,7 +5,7 @@ const FileSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    originalName: {
+    originalname: { // Corretto il nome del campo
         type: String,
         required: true
     },
@@ -17,7 +17,7 @@ const FileSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    size: {
+    size: { // Aggiunto il campo size
         type: Number,
         required: true
     },
@@ -29,9 +29,13 @@ const FileSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    uploadDate: {
+    uploadTimestamp: {
         type: Date,
-        default: Date.now
+        default: () => new Date()
+    },
+    bucketName: {
+      type: String,
+      required: true
     }
 });
 

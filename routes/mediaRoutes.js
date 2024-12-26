@@ -16,7 +16,7 @@ mongoose.connection.once('open', () => {
 
 // Configura Multer
 const multerConfig = configureMulter(mongoose.connection);
-const upload = multerConfig.upload;
+const { upload, saveFileToGridFS } = multerConfig; // Recupera sia upload che saveFileToGridFS
 
 // Route per upload file
 router.post('/upload', authenticate, async (req, res) => {
@@ -67,21 +67,19 @@ router.post('/upload', authenticate, async (req, res) => {
                 error: 'Nessun file caricato'
             });
         }
-
-        console.log('File ricevuto:', {
-            filename: req.file.filename,
-            size: req.file.size,
-            mimetype: req.file.mimetype
-        });
+        
+        const savedFile = await saveFileToGridFS(req.file.buffer, req.file.originalname, req.file.mimetype, userId, postId);
+        console.log('File salvato in GridFS:', savedFile);
 
         const fileDoc = new File({
-            filename: req.file.filename,
-            originalName: req.file.originalname,
-            fileId: req.file.id,
+            filename: savedFile.filename,
+            originalname: req.file.originalname,
+            fileId: savedFile.fileId,
             mimetype: req.file.mimetype,
-            size: req.file.size,
+            size: req.file.size, // Recupera la dimensione dal req.file
             postId: postId,
-            userId: userId
+            userId: userId,
+            bucketName: savedFile.bucketName
         });
 
         await fileDoc.save();
@@ -95,9 +93,9 @@ router.post('/upload', authenticate, async (req, res) => {
                 id: fileDoc._id,
                 filename: fileDoc.filename,
                 url: fileUrl,
-                originalName: fileDoc.originalName,
+                originalName: fileDoc.originalname,
                 mimetype: fileDoc.mimetype,
-                size: fileDoc.size
+                size: req.file.size // Recupera la dimensione dal req.file
             },
             postId,
             userId
