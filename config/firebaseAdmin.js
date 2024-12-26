@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('./firebase-adminsdk.json'); // Percorso relativo diretto
+
+const serviceAccount = require('/etc/secrets/firebase-adminsdk.json'); // Percorso per i Secret Files su Render
 
 try {
   admin.initializeApp({
