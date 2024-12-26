@@ -4,8 +4,8 @@ const bcrypt = require('bcryptjs');
 module.exports = {
   createUser: async (req, res) => {
     try {
-      const { nome, email, password } = req.body;
-      
+      const { nome, email, password, nickname } = req.body; // Aggiunto nickname
+
       // Controllo se l'utente esiste già
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -17,19 +17,21 @@ module.exports = {
       const hashedPassword = await bcrypt.hash(password, salt);
 
       // Creazione nuovo utente
-      const newUser = new User({ 
-        nome, 
-        email, 
-        password: hashedPassword 
+      const newUser = new User({
+        nome,
+        email,
+        password: hashedPassword,
+        nickname // Aggiunto nickname
       });
 
       await newUser.save();
 
-      // Rimuovere la password dalla risposta
+      // Rimuovere la password dalla risposta e includere il nickname
       const userResponse = {
         _id: newUser._id,
         nome: newUser.nome,
-        email: newUser.email
+        email: newUser.email,
+        nickname: newUser.nickname // Aggiunto nickname
       };
 
       res.status(201).json(userResponse);
@@ -39,7 +41,6 @@ module.exports = {
     }
   },
 
-  // Aggiungiamo un metodo di login
   loginUser: async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -56,11 +57,12 @@ module.exports = {
         return res.status(400).json({ message: 'Credenziali non valide' });
       }
 
-      // Rimuovere la password dalla risposta
+      // Rimuovere la password dalla risposta e includere il nickname
       const userResponse = {
         _id: user._id,
         nome: user.nome,
-        email: user.email
+        email: user.email,
+        nickname: user.nickname // Aggiunto nickname
       };
 
       res.status(200).json(userResponse);

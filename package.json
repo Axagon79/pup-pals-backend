@@ -36,6 +36,7 @@
     "multer-gridfs-storage": "^5.0.2"
   },
   "devDependencies": {
+    "@types/firebase": "^3.2.3",
     "nodemon": "^3.0.2"
   },
   "engines": {
