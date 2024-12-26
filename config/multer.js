@@ -19,13 +19,14 @@ const configureMulter = (mongooseConnection) => {
             }
 
             if (!file || !file.originalname) {
-              console.error('File non valido:', file);
-              return reject(new Error('File non valido'));
+              const error = new Error('File non valido: nessun nome file fornito');
+              console.error('File non valido:', file, error);
+              return reject(error);
             }
 
             const filename = `${buf.toString('hex')}${path.extname(file.originalname)}`;
 
-            const userId = req.body?.userId || req.user?.id || 'unknown';
+            const userId = req.body?.userId || (req.user ? req.user.id : 'unknown');
             const postId = req.body?.postId || 'unknown';
 
             console.log("userId (in multer config):", userId);
@@ -56,8 +57,7 @@ const configureMulter = (mongooseConnection) => {
           reject(error);
         }
       });
-    },
-    options: {} // Corretto qui
+    }
   });
 
   storage.on('connectionError', (err) => {
@@ -68,7 +68,6 @@ const configureMulter = (mongooseConnection) => {
     console.error('Errore GridFS:', err);
   });
 
-  // MODIFICATO QUI: non chiamare .single('file') qui
   const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
@@ -78,7 +77,7 @@ const configureMulter = (mongooseConnection) => {
       if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        console.warn(`Tipo file non consentito: ${file.mimetype}`);
+        console.warn(`Tipo file non consentito: ${file.mimetype}, ${file.originalname}`);
         cb(new Error(`Tipo file non supportato: ${file.mimetype}`), false);
       }
     },
@@ -88,7 +87,7 @@ const configureMulter = (mongooseConnection) => {
     }
   });
 
-  return { upload }; // Rimuovi storage dal return se non lo usi altrove
+  return { upload };
 };
 
 module.exports = configureMulter;
