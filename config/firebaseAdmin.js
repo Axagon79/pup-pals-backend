@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('/etc/secrets/firebase-adminsdk.json');
+const serviceAccount = require('./firebase-adminsdk.json'); // Percorso relativo diretto
 
 try {
   admin.initializeApp({
