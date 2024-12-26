@@ -6,7 +6,8 @@ const configureMulter = require('./config/multer');
 const path = require('path');
 const mediaRoutes = require('./routes/mediaRoutes');
 const postRoutes = require('./routes/postRoutes');
-const cors = require('cors'); // Importa il pacchetto cors
+const cors = require('cors');
+const helmet = require('helmet');
 
 // Validazione variabili d'ambiente
 if (!process.env.MONGODB_URI) {
@@ -16,6 +17,17 @@ if (!process.env.MONGODB_URI) {
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+// Middleware per forzare HTTPS
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
+
+// Configura Helmet per sicurezza
+app.use(helmet());
 
 // Configura CORS prima di qualsiasi altro middleware o rotta
 app.use(cors({
@@ -33,8 +45,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api', mediaRoutes);
 app.use('/api/posts', postRoutes);
-
-
 
 // Funzione di connessione a MongoDB
 const connectDB = async (retries = 5) => {
@@ -78,10 +88,17 @@ const startServer = async () => {
       next();
     });
     
-
     // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
       try {
+        // Imposta headers di sicurezza
+        res.setHeader('Content-Security-Policy', 'upgrade-insecure-requests');
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
         const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
 
         downloadStream.on('data', (chunk) => {
