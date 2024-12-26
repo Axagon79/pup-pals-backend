@@ -2,74 +2,11 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 const crypto = require('crypto');
 const path = require('path');
 const multer = require('multer');
+const { ObjectId } = require('mongodb');
 
 const configureMulter = (mongooseConnection) => {
-  const storage = new GridFsStorage({
-    url: process.env.MONGODB_URI,
-    file: (req, file) => {
-      return new Promise((resolve, reject) => {
-        try {
-          console.log("req.body (in multer config):", req.body);
-          console.log("req.user (in multer config):", req.user);
-
-          crypto.randomBytes(16, (cryptoErr, buf) => {
-            if (cryptoErr) {
-              console.error('Errore generazione nome file:', cryptoErr);
-              return reject(cryptoErr);
-            }
-
-            if (!file || !file.originalname) {
-              const error = new Error('File non valido: nessun nome file fornito');
-              console.error('File non valido:', file, error);
-              return reject(error);
-            }
-
-            const filename = `${buf.toString('hex')}${path.extname(file.originalname)}`;
-
-            const userId = req.body?.userId || (req.user ? req.user.id : 'unknown');
-            const postId = req.body?.postId || 'unknown';
-
-            console.log("userId (in multer config):", userId);
-            console.log("postId (in multer config):", postId);
-
-            const fileInfo = {
-              filename: filename,
-              bucketName: 'uploads',
-              metadata: {
-                originalname: file.originalname,
-                mimetype: file.mimetype,
-                userId: userId,
-                postId: postId,
-                uploadTimestamp: new Date().toISOString()
-              }
-            };
-
-            console.log('Preparazione upload file:', {
-              originalName: file.originalname,
-              mimetype: file.mimetype,
-              generatedFilename: filename
-            });
-
-            resolve(fileInfo);
-          });
-        } catch (error) {
-          console.error('Errore fatale preparazione file:', error);
-          reject(error);
-        }
-      });
-    }
-  });
-
-  storage.on('connectionError', (err) => {
-    console.error('Errore connessione GridFS:', err);
-  });
-
-  storage.on('error', (err) => {
-    console.error('Errore GridFS:', err);
-  });
-
   const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(), // Salva temporaneamente il file in memoria
     fileFilter: (req, file, cb) => {
       console.log('File ricevuto:', file);
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'];
@@ -87,7 +24,48 @@ const configureMulter = (mongooseConnection) => {
     }
   });
 
-  return { upload };
+  const saveFileToGridFS = async (fileBuffer, originalname, mimetype, userId, postId) => {
+      return new Promise((resolve, reject) => {
+          crypto.randomBytes(16, async (cryptoErr, buf) => {
+              if (cryptoErr) {
+                  console.error('Errore generazione nome file:', cryptoErr);
+                  return reject(cryptoErr);
+              }
+              const filename = `${buf.toString('hex')}${path.extname(originalname)}`;
+              const bucket = new mongoose.mongo.GridFSBucket(mongooseConnection.db, {
+                  bucketName: 'uploads'
+              });
+              const uploadStream = bucket.openUploadStream(filename, {
+                  metadata: {
+                      originalname: originalname,
+                      mimetype: mimetype,
+                      userId: userId,
+                      postId: postId,
+                      uploadTimestamp: new Date().toISOString()
+                  }
+              });
+
+              uploadStream.on('error', (err) => {
+                  console.error('Errore durante l\'upload del file:', err);
+                  reject(err);
+              });
+
+              uploadStream.on('finish', () => {
+                  console.log('File salvato in GridFS:', filename);
+                  resolve({
+                    fileId: uploadStream.id,
+                    filename: filename,
+                    bucketName: 'uploads'
+                  });
+              });
+
+              uploadStream.write(fileBuffer);
+              uploadStream.end();
+          });
+      });
+  };
+
+  return { upload, saveFileToGridFS };
 };
 
 module.exports = configureMulter;
