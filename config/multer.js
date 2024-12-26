@@ -2,11 +2,11 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 const crypto = require('crypto');
 const path = require('path');
 const multer = require('multer');
-const { ObjectId } = require('mongodb');
+const mongoose = require('mongoose'); // Importa mongoose
 
 const configureMulter = (mongooseConnection) => {
   const upload = multer({
-    storage: multer.memoryStorage(), // Salva temporaneamente il file in memoria
+    storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
       console.log('File ricevuto:', file);
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'];
