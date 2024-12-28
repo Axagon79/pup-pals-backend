@@ -1,12 +1,8 @@
 const admin = require('firebase-admin');
-const fs = require('fs'); // Importa il modulo fs
-
-// Leggi il contenuto di test.txt usando fs.readFileSync:
-const test = fs.readFileSync('/etc/secrets/test.txt', 'utf8');
-console.log("Contenuto di test.txt:", test);
-
-// Il resto del tuo codice per l'inizializzazione di Firebase Admin SDK:
 const serviceAccount = require('/etc/secrets/firebase-adminsdk.json');
+
+// Mantieni questo console.log per verificare il contenuto di serviceAccount
+console.log("Contenuto di serviceAccount:", serviceAccount);
 
 try {
   admin.initializeApp({
