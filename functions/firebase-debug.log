@@ -1,0 +1,25 @@
+[debug] [2024-12-29T21:14:54.419Z] ----------------------------------------------------------------------
+[debug] [2024-12-29T21:14:54.422Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\lollo\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2024-12-29T21:14:54.423Z] CLI Version:   13.29.1
+[debug] [2024-12-29T21:14:54.423Z] Platform:      win32
+[debug] [2024-12-29T21:14:54.423Z] Node Version:  v22.12.0
+[debug] [2024-12-29T21:14:54.423Z] Time:          Sun Dec 29 2024 22:14:54 GMT+0100 (Ora standard dell’Europa centrale)
+[debug] [2024-12-29T21:14:54.423Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-12-29T21:14:54.500Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-12-29T21:14:54.500Z] > authorizing via signed-in user (lollotj@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\lollo\Desktop\clone_pup_pals_visualstudio\pup-pals-backend\functions
+
+Before we get started, keep in mind:
+
+  * You are initializing within an existing Firebase project directory
+

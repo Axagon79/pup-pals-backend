@@ -19,6 +19,7 @@
   "author": "Tuo Nome",
   "license": "ISC",
   "dependencies": {
+    "@firebasegen/default-connector": "link:dataconnect-generated\\js\\default-connector",
     "bcryptjs": "^2.4.3",
     "bson": "^6.2.0",
     "busboy": "^1.6.0",
