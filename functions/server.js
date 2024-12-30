@@ -1,10 +1,10 @@
-// Caricamento variabili d'ambiente con path risolto
+const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+
 
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
-const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const functions = require('firebase-functions');
