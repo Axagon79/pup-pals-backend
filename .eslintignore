@@ -1,0 +1,5 @@
+node_modules/
+functions/dataconnect-generated/
+**/dataconnect-generated/
+backend/
+functions/backend/
