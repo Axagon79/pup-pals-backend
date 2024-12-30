@@ -1,4 +1,6 @@
-const admin = require('../config/firebaseAdmin');
+const path = require('path');
+const rootDir = path.resolve(__dirname, '..', '..');
+const admin = require(path.resolve(rootDir, 'functions', 'config', 'firebaseAdmin'));
 
 const authenticate = async (req, res, next) => {
   console.log('Headers ricevuti:', req.headers);
