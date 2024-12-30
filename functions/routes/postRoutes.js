@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const rootDir = path.resolve(__dirname, '..', '..'); // Risale di due livelli per arrivare alla root
-const Post = require(path.resolve(rootDir, 'models', 'Post'));
-const authenticate = require(path.resolve(rootDir, 'middleware', 'auth'));
-const configureMulter = require(path.resolve(__dirname, '..', 'config', 'multer'));
+// Modifica i percorsi per puntare alle directory corrette all'interno di functions
+const Post = require('../models/Post');
+const authenticate = require('../middleware/auth');
+const configureMulter = require('../config/multer');
 const mongoose = require('mongoose');
+
 
 // Configura Multer
 const multerConfig = configureMulter(mongoose.connection);

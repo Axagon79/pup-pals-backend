@@ -1,0 +1,5 @@
+{
+    "mongodb": {
+      "uri": "mongodb+srv://Database_User:LPmYAZkzEVxjSaAd@pup-pals-cluster.y1h2r.mongodb.net/pup_pals_db?retryWrites=true&w=majority&appName=pup-pals-cluster"
+    }
+  }
