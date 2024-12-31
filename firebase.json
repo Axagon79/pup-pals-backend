@@ -16,9 +16,10 @@
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ],
-      "environmentVariables": {
-        "MONGODB_URI": "mongodb+srv://Database_User:LPmYAZkzEVxjSaAd@pup-pals-cluster.y1h2r.mongodb.net/pup_pals_db?retryWrites=true&w=majority&appName=pup-pals-cluster"
-      }
+      "codebase": "pup_pals_backend",
+      "include": [
+        ".env"
+      ]
     }
   ],
   "emulators": {
@@ -30,6 +31,31 @@
     },
     "ui": {
       "enabled": true
-    }
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "storage": {
+      "port": 9199
+    },
+    "singleProjectMode": true
+  },
+  "hosting": {
+    
+    "public": "build", 
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }
