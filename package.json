@@ -27,6 +27,7 @@
   "author": "Il Tuo Nome",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "bcryptjs": "^2.4.3",
     "bson": "^6.2.0",
     "busboy": "^1.6.0",

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -7,8 +7,13 @@ const path = require('path');
 const mediaRoutes = require('./routes/mediaRoutes');
 const postRoutes = require('./routes/postRoutes');
 const cors = require('cors');
-const helmet = require('helmet');
 const functions = require('firebase-functions'); // Importa firebase-functions
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+console.log("Directory corrente:", __dirname);
+console.log("Variabili d'ambiente:", process.env);
+console.log("MONGODB_URI:", process.env.MONGODB_URI);
+
+
 
 // Validazione variabili d'ambiente
 if (!process.env.MONGODB_URI) {
@@ -17,11 +22,10 @@ if (!process.env.MONGODB_URI) {
 }
 
 const app = express();
-// const port = process.env.PORT || 5000; // Rimuovi questa riga
-
+const port = process.env.PORT || 5000; 
 // Configura CORS prima di qualsiasi altro middleware o rotta
 app.use(cors({
-  origin: 'https://pup-pals.vercel.app',
+  origin: ['https://pup-pals.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -77,6 +81,54 @@ const startServer = async () => {
     `);
       next();
     });
+    app.listen(port, () => {
+      console.log(`Server in ascolto sulla porta ${port}`);
+    });
+    let geminiModel;
+if (process.env.GEMINI_API_KEY) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+} else {
+  console.error("Errore: la variabile d'ambiente GEMINI_API_KEY non è impostata.");
+}
+
+
+app.post('/api/vet-assistant', async (req, res) => {
+  console.log("Richiesta ricevuta sull'endpoint /api/vet-assistant");
+  console.log("Body della richiesta:", req.body);
+  try {
+    if (!geminiModel) {
+      return res.status(500).json({ error: 'Assistente virtuale non disponibile.' });
+    }
+
+    const { systemPrompt, animalDetails, conversationHistory, question } = req.body;
+
+    let fullPrompt = `${systemPrompt || ''}\n\n`;
+    if (animalDetails) {
+      fullPrompt += `PROFILO ANIMALE AGGIORNATO:\n${animalDetails}\n`;
+    }
+    if (conversationHistory) {
+      fullPrompt += `CONTESTO CONVERSAZIONE:\n${conversationHistory}\n`;
+    }
+    fullPrompt += `\nNUOVA DOMANDA: ${question}\n\nISTRUZIONI SPECIALI:\n`;
+    fullPrompt += `- Rispondi SEMPRE in italiano in modo conciso e naturale, tenendo conto del profilo animale.\n`;
+    fullPrompt += `- Fornisci informazioni utili e pratiche.\n`;
+    fullPrompt += `- Usa un linguaggio chiaro e comprensibile.\n`;
+    fullPrompt += `- Mostra empatia e comprensione verso l'utente.\n`;
+    fullPrompt += `- NON ripetere nessuna parte del prompt o del contesto nella tua risposta.\n`;
+
+    const result = await geminiModel.generateContent(fullPrompt);
+    const responseText = result.response.text(); // Ottieni il testo con .text()
+    
+    res.json({ response: responseText });
+  } catch (error) {
+    console.error('Errore Gemini:', error);
+    res.status(500).json({ 
+      error: 'Errore durante la generazione della risposta.',
+      details: error.message 
+    });
+  }
+});
     
     // Route per scaricare file
     app.get('/api/files/:filename', async (req, res) => {
@@ -202,15 +254,6 @@ const startServer = async () => {
       });
     });
 
-    // Avvia il server
-    // const server = app.listen(port, () => {  // Rimuovi questa riga
-    //   console.log(`
-    //   === SERVER AVVIATO ===
-    //   Porta: ${port}
-    //   Timestamp: ${new Date().toISOString()}
-    //   `);
-    // });
-
     // Gestione chiusura server
     process.on('SIGTERM', () => {
       console.log('Processo SIGTERM ricevuto. Chiusura server...');
@@ -244,7 +287,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Avvia il server
-// startServer();  // Rimuovi questa riga
-
 exports.api = functions.https.onRequest(app); // Aggiungi questa riga
+
+startServer() // Chiama startServer una sola volta all'avvio
+  .then(() => console.log("Server configurato correttamente"))
+  .catch(error => console.error("Errore durante la configurazione del server:", error));
