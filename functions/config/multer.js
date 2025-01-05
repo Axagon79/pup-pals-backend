@@ -89,7 +89,7 @@ const configureMulter = (mongooseConnection) => {
       const bucket = new mongoose.mongo.GridFSBucket(mongooseConnection.db, {
         bucketName: 'uploads'
       });
-      await bucket.delete(new mongoose.Types.ObjectId(fileId));
+      mongoose.Types.ObjectId.createFromHexString(fileId)
       console.log(`File ${fileId} eliminato con successo`);
       return true;
     } catch (error) {

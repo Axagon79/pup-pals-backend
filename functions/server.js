@@ -11,7 +11,6 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const File = require('./models/File');
 const Post = require('./models/Post');
-const functions = require('firebase-functions');
 const connectDB = require('./config/mongodb');
 
 let app = null;
@@ -48,10 +47,8 @@ const initializeServer = async (expressApp) => {
   });
 
   try {
-    // Connessione MongoDB
-    const MONGODB_URI = functions.config().mongodb?.uri || process.env.MONGODB_URI;
+    const MONGODB_URI = process.env.MONGODB_URI;
     const mongoConnection = await connectDB(MONGODB_URI);
-    
     // Configurazione Multer
     const { upload, saveFileToGridFS, deleteFileFromGridFS } = configureMulter(mongoConnection);
     app.set('upload', upload);
@@ -67,14 +64,14 @@ const initializeServer = async (expressApp) => {
     app.set('mongoDB', db);
     app.set('bucket', bucket);
 
-    // Configurazione Gemini
-    const GEMINI_API_KEY = functions.config().gemini?.apikey || process.env.GEMINI_API_KEY;
-    if (GEMINI_API_KEY) {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.replace(/"/g, ''));
-      geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" });
-      app.set('geminiModel', geminiModel);
-      console.log('Gemini configurato correttamente');
-    }
+   // Configurazione Gemini
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (GEMINI_API_KEY) {
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.replace(/"/g, ''));
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+  app.set('geminiModel', geminiModel);
+  console.log('Gemini configurato correttamente');
+}
 
     // Rotte
     app.use('/api', mediaRoutes);
