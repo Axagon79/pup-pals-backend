@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "puppals-456c7"
-  }
+    "default": "puppals-456c7",
+    "pup-pals-backend": "puppals-456c7"
+  },
+  "targets": {},
+  "etags": {}
 }
