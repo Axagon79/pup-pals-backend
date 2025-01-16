@@ -88,9 +88,9 @@ if (GEMINI_API_KEY) {
 
         // Configurazione dei parametri di generazione
         const generationConfig = {
-          temperature: 0.7, // Modifica la temperatura qui
-          topK: 50,
-          topP: 0.95,
+          temperature: 0.5, // Modifica la temperatura qui
+          topK: 40,
+          topP: 0.90,
           maxOutputTokens: 4096,
         };
 
