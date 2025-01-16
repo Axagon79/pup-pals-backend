@@ -85,8 +85,22 @@ if (GEMINI_API_KEY) {
         }
 
         const { systemPrompt, animalDetails, conversationHistory, question } = req.body;
+
+        // Configurazione dei parametri di generazione
+        const generationConfig = {
+          temperature: 0.7, // Modifica la temperatura qui
+          topK: 50,
+          topP: 0.95,
+          maxOutputTokens: 4096,
+        };
+
         const fullPrompt = constructPrompt(systemPrompt, animalDetails, conversationHistory, question);
-        const result = await geminiModel.generateContent(fullPrompt);
+
+        const result = await geminiModel.generateContent({
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+          generationConfig, // Passa l'oggetto generationConfig
+        });
+
         res.json({ response: result.response.text() });
       } catch (error) {
         console.error('Errore Gemini:', error);
