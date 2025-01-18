@@ -26,7 +26,6 @@ exports.api = functions.https.onRequest(async (req, res) => {
   });
 });
 
-// Funzione Gemini (onCall)
 exports.callGemini = functions.https.onCall(async (data, context) => {
   try {
     const configuredApp = await server(app);
@@ -38,7 +37,35 @@ exports.callGemini = functions.https.onCall(async (data, context) => {
 
     const { systemPrompt, animalDetails, conversationHistory, question } = data;
 
-    const result = await geminiModel.generateContent(systemPrompt); // Invia solo systemPrompt
+    // Validazione dei dati
+    if (!systemPrompt || typeof systemPrompt !== 'string') {
+      throw new functions.https.HttpsError('invalid-argument', 'Il campo systemPrompt è richiesto e deve essere una stringa.');
+    }
+
+    if (!animalDetails || typeof animalDetails !== 'object') {
+      throw new functions.https.HttpsError('invalid-argument', 'Il campo animalDetails è richiesto e deve essere un oggetto.');
+    }
+
+    if (!conversationHistory || !Array.isArray(conversationHistory)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Il campo conversationHistory è richiesto e deve essere un array.');
+    }
+
+    // Costruisci il prompt completo
+    const fullPrompt = `
+      Informazioni sull'animale:
+      ${JSON.stringify(animalDetails, null, 2)}
+
+      Cronologia della conversazione:
+      ${conversationHistory.join('\n')}
+
+      Domanda dell'utente:
+      ${systemPrompt}
+    `;
+
+    // Genera la risposta dal modello
+    const result = await geminiModel.generateContent(fullPrompt);
+
+    // Restituisci la risposta
     return { response: result.response.text() };
   } catch (error) {
     console.error('Errore in callGemini:', error);

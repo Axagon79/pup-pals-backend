@@ -88,10 +88,10 @@ if (GEMINI_API_KEY) {
 
         // Configurazione dei parametri di generazione
         const generationConfig = {
-          temperature: 0.5, // Modifica la temperatura qui
+          temperature: 0.7, // Modifica la temperatura qui
           topK: 40,
-          topP: 0.80,
-          maxOutputTokens: 4096,
+          topP: 0.90,
+          maxOutputTokens: 8192,
         };
 
         const fullPrompt = constructPrompt(systemPrompt, animalDetails, conversationHistory, question);
