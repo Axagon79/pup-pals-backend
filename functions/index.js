@@ -85,9 +85,21 @@ exports.callGeminiHttp = functions.https.onRequest(async (req, res) => {
         return;
       }
 
-      const { systemPrompt, animalDetails, conversationHistory, question } = req.body;
+      const { systemPrompt, animalDetails, conversationHistory } = req.body;
 
-      const result = await geminiModel.generateContent(systemPrompt); // Invia solo systemPrompt
+      // Costruisci il prompt completo includendo conversationHistory
+      const fullPrompt = `
+        Informazioni sull'animale:
+        ${JSON.stringify(animalDetails, null, 2)}
+
+        Cronologia della conversazione:
+        ${conversationHistory ? conversationHistory.join('\n') : ''}
+
+        Prompt dell'utente:
+        ${systemPrompt}
+      `;
+
+      const result = await geminiModel.generateContent(fullPrompt);
       res.json({ response: result.response.text() });
     } catch (error) {
       console.error('Errore in callGeminiHttp:', error);
