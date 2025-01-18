@@ -87,23 +87,53 @@ exports.callGeminiHttp = functions.https.onRequest(async (req, res) => {
 
       const { systemPrompt, animalDetails, conversationHistory } = req.body;
 
-      // Costruisci il prompt completo includendo conversationHistory
-      const fullPrompt = `
-        Informazioni sull'animale:
-        ${JSON.stringify(animalDetails, null, 2)}
+      // Validazione dei dati
+      if (!systemPrompt || typeof systemPrompt !== 'string') {
+        res.status(400).json({ error: 'Il campo systemPrompt è richiesto e deve essere una stringa.' });
+        return;
+      }
 
-        Cronologia della conversazione:
-        ${conversationHistory ? conversationHistory.join('\n') : ''}
+      // Validazione più flessibile per animalDetails
+      if (animalDetails && typeof animalDetails !== 'string') {
+        res.status(400).json({ error: 'Il campo animalDetails deve essere una stringa.' });
+        return;
+      }
+
+      // Validazione più flessibile per conversationHistory
+      const validConversationHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
+
+      // Costruisci il prompt completo
+      const fullPrompt = `
+        ${animalDetails ? `Informazioni sull'animale:
+        ${animalDetails}` : ''}
+
+        ${validConversationHistory.length > 0 ? `Cronologia della conversazione:
+        ${validConversationHistory.map(entry => `${entry.role}: ${entry.content}`).join('\n')}` : ''}
 
         Prompt dell'utente:
         ${systemPrompt}
-      `;
+      `.trim();
+
+      console.log('Elaborazione prompt:', fullPrompt); // Per debug
 
       const result = await geminiModel.generateContent(fullPrompt);
-      res.json({ response: result.response.text() });
+      
+      if (!result || !result.response) {
+        throw new Error('Risposta non valida dal modello Gemini');
+      }
+
+      res.json({ 
+        response: result.response.text(),
+        success: true
+      });
+
     } catch (error) {
-      console.error('Errore in callGeminiHttp:', error);
-      res.status(500).json({ error: error.message });
+      console.error('Errore dettagliato in callGeminiHttp:', error);
+      res.status(500).json({ 
+        error: 'Errore durante l\'elaborazione della richiesta',
+        details: error.message,
+        success: false
+      });
     }
   });
 });
