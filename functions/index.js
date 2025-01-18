@@ -26,53 +26,6 @@ exports.api = functions.https.onRequest(async (req, res) => {
   });
 });
 
-exports.callGemini = functions.https.onCall(async (data, context) => {
-  try {
-    const configuredApp = await server(app);
-    const geminiModel = configuredApp.get('geminiModel');
-
-    if (!geminiModel) {
-      throw new functions.https.HttpsError('failed-precondition', 'Gemini non è configurato');
-    }
-
-    const { systemPrompt, animalDetails, conversationHistory, question } = data;
-
-    // Validazione dei dati
-    if (!systemPrompt || typeof systemPrompt !== 'string') {
-      throw new functions.https.HttpsError('invalid-argument', 'Il campo systemPrompt è richiesto e deve essere una stringa.');
-    }
-
-    if (!animalDetails || typeof animalDetails !== 'object') {
-      throw new functions.https.HttpsError('invalid-argument', 'Il campo animalDetails è richiesto e deve essere un oggetto.');
-    }
-
-    if (!conversationHistory || !Array.isArray(conversationHistory)) {
-      throw new functions.https.HttpsError('invalid-argument', 'Il campo conversationHistory è richiesto e deve essere un array.');
-    }
-
-    // Costruisci il prompt completo
-    const fullPrompt = `
-      Informazioni sull'animale:
-      ${JSON.stringify(animalDetails, null, 2)}
-
-      Cronologia della conversazione:
-      ${conversationHistory.join('\n')}
-
-      Domanda dell'utente:
-      ${systemPrompt}
-    `;
-
-    // Genera la risposta dal modello
-    const result = await geminiModel.generateContent(fullPrompt);
-
-    // Restituisci la risposta
-    return { response: result.response.text() };
-  } catch (error) {
-    console.error('Errore in callGemini:', error);
-    throw new functions.https.HttpsError('internal', error.message);
-  }
-});
-
 // Endpoint specifico per Gemini con CORS (onRequest)
 exports.callGeminiHttp = functions.https.onRequest(async (req, res) => {
   cors(corsConfig)(req, res, async () => {
@@ -85,38 +38,17 @@ exports.callGeminiHttp = functions.https.onRequest(async (req, res) => {
         return;
       }
 
-      const { systemPrompt, animalDetails, conversationHistory } = req.body;
+      const { systemPrompt } = req.body;
 
-      // Validazione dei dati
+      // Validazione base
       if (!systemPrompt || typeof systemPrompt !== 'string') {
         res.status(400).json({ error: 'Il campo systemPrompt è richiesto e deve essere una stringa.' });
         return;
       }
 
-      // Validazione più flessibile per animalDetails
-      if (animalDetails && typeof animalDetails !== 'string') {
-        res.status(400).json({ error: 'Il campo animalDetails deve essere una stringa.' });
-        return;
-      }
+      console.log('Elaborazione prompt:', systemPrompt); // Per debug
 
-      // Validazione più flessibile per conversationHistory
-      const validConversationHistory = Array.isArray(conversationHistory) ? conversationHistory : [];
-
-      // Costruisci il prompt completo
-      const fullPrompt = `
-        ${animalDetails ? `Informazioni sull'animale:
-        ${animalDetails}` : ''}
-
-        ${validConversationHistory.length > 0 ? `Cronologia della conversazione:
-        ${validConversationHistory.map(entry => `${entry.role}: ${entry.content}`).join('\n')}` : ''}
-
-        Prompt dell'utente:
-        ${systemPrompt}
-      `.trim();
-
-      console.log('Elaborazione prompt:', fullPrompt); // Per debug
-
-      const result = await geminiModel.generateContent(fullPrompt);
+      const result = await geminiModel.generateContent(systemPrompt);
       
       if (!result || !result.response) {
         throw new Error('Risposta non valida dal modello Gemini');
