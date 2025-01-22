@@ -2,8 +2,12 @@ const functions = require('firebase-functions');
 const express = require('express');
 const cors = require('cors');
 const server = require('./server');
+const notificationFunctions = require('./notificationFunctions');
+
 
 const app = express();
+
+
 
 // Configurazione CORS
 const corsConfig = {
@@ -69,3 +73,6 @@ exports.callGeminiHttp = functions.https.onRequest(async (req, res) => {
     }
   });
 });
+
+// Funzione per inviare notifiche
+exports.sendNotification = notificationFunctions.sendNotification;
